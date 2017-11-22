@@ -42,7 +42,7 @@ public @interface CryptField {
         </property>
         <property name="plugins">
             <array>
-                <bean id="gsmdCryptIntercepter" class="org.apache.ibatis.plugin.CryptIntercepter">
+                <bean id="cryptIntercepter" class="org.apache.ibatis.plugin.CryptIntercepter">
                 </bean>
             </array>
         </property>
