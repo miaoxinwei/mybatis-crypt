@@ -61,7 +61,7 @@ public @interface CryptField {
 
 - 类成员变量上
 
-  表示类成员需要加解密，具体看使用场景、适用对象包括String
+  表示类成员需要加解密，具体看使用场景、适用对象包括String、List&lt;String>
 
 - 方法参数上
 

@@ -1,5 +1,6 @@
 package org.apache.ibatis.plugin;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.ibatis.annotations.CryptField;
 import org.apache.ibatis.binding.MapperMethod;
 import org.apache.ibatis.executor.Executor;
@@ -18,7 +19,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 项目：mybatis-crypt
  * 包名：org.apache.ibatis.plugin
- * 功能：
+ * 功能：数据库数据脱敏
+ * 加解密算法推荐：aes192 + base64
  * 时间：2017-11-22
  * 作者：miaoxw
  */
@@ -60,29 +62,14 @@ public class CryptIntercepter implements Interceptor {
                         continue;
                     }
                     if (entry.getKey().contains("list")) {
-                        Set<String> set = getParameterAnnotations((MappedStatement) args[0]);
-                        if (!set.isEmpty()) {
-                            List list = (List) entry.getValue();
-                            for (int i = 0; i < list.size(); i++) {
-                                Object listValue = list.get(i);
-                                // 判断不需要解析的类型
-                                if (isNotCrypt(listValue) || listValue instanceof Map) {
-                                    break;
-                                }
-                                if (listValue instanceof String) {
-                                    list.set(i, stringEncrypt((String) listValue));
-                                    continue;
-                                }
-
-                                beanEncrypt(listValue);
-                            }
-                        }
+                        Set<String> set = getParameterAnnotations(statement);
+                        listEncrypt((List) entry.getValue(), !set.isEmpty());
                     }
                 }
                 // 多参数
             } else if (parameter instanceof MapperMethod.ParamMap) {
                 MapperMethod.ParamMap<Object> paramMap = (MapperMethod.ParamMap<Object>) parameter;
-                Set<String> set = getParameterAnnotations((MappedStatement) args[0]);
+                Set<String> set = getParameterAnnotations(statement);
                 boolean setEmpty = set.isEmpty();
                 // 解析每一个参数
                 for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
@@ -98,20 +85,7 @@ public class CryptIntercepter implements Interceptor {
                     boolean isSetValue = !setEmpty && set.contains(entry.getKey());
                     // 如果 list
                     if (entry.getValue() instanceof List) {
-                        List list = (List) entry.getValue();
-                        for (int i = 0; i < list.size(); i++) {
-                            Object listValue = list.get(i);
-                            // 判断不需要解析的类型
-                            if (isNotCrypt(listValue) || listValue instanceof Map) {
-                                break;
-                            }
-                            if (listValue instanceof String && isSetValue) {
-                                list.set(i, stringEncrypt((String) listValue));
-                                continue;
-                            }
-
-                            beanEncrypt(listValue);
-                        }
+                        listEncrypt((List) entry.getValue(), isSetValue);
                         continue;
                     }
                     beanEncrypt(entry.getValue());
@@ -125,27 +99,17 @@ public class CryptIntercepter implements Interceptor {
         // 获得出参
         Object returnValue = invocation.proceed();
 
-        // 出参解析
-        if (returnValue == null || isNotCrypt(returnValue)) {
+        // 出参解密
+        if (isNotCrypt(returnValue)) {
             return returnValue;
         }
-        if (returnValue instanceof String && getMethodAnnotations(statement)) {
+        Boolean bo = getMethodAnnotations(statement);
+        if (returnValue instanceof String && bo) {
             return stringDecrypt((String) returnValue);
         }
         if (returnValue instanceof List) {
-            List list = (List) returnValue;
-            for (int i = 0; i < list.size(); i++) {
-                Object listValue = list.get(i);
-                // 判断不需要解析的类型 获得
-                if (isNotCrypt(listValue)) {
-                    break;
-                }
-                if (listValue instanceof String && getMethodAnnotations(statement)) {
-                    list.set(i, stringDecrypt((String) listValue));
-                    continue;
-                }
-                beanDecrypt(listValue);
-            }
+            listDecrypt((List) returnValue, bo);
+            return returnValue;
         }
 
         return returnValue;
@@ -226,7 +190,7 @@ public class CryptIntercepter implements Interceptor {
             return set;
         }
         final Annotation[][] paramAnnotations = m.getParameterAnnotations();
-        // get names from @Crypt annotations
+        // get names from @CryptField annotations
         for (Annotation[] paramAnnotation : paramAnnotations) {
             for (Annotation annotation : paramAnnotation) {
                 if (annotation instanceof CryptField) {
@@ -304,17 +268,23 @@ public class CryptIntercepter implements Interceptor {
      * @return
      * @throws UnsupportedEncodingException
      */
-    private String stringEncrypt(String name, String str, Set<String> set, Boolean isSingle) throws UnsupportedEncodingException {
+    private String stringEncrypt(String name, String str, Set<String> set, Boolean isSingle) {
+        if (StringUtils.isBlank(str)) {
+            return str;
+        }
         if (isSingle == null) {
             //todo 加密实现
+            str = "";
             return str;
         }
         if (isSingle && set != null && !set.isEmpty()) {
             //todo 加密实现
+            str = "";
             return str;
         }
         if (!isSingle && set != null && !set.isEmpty() && set.contains(name)) {
             //todo 加密实现
+            str = "";
             return str;
         }
 
@@ -328,14 +298,68 @@ public class CryptIntercepter implements Interceptor {
      * @return
      * @throws UnsupportedEncodingException
      */
-    private String stringDecrypt(String str) throws UnsupportedEncodingException {
+    private String stringDecrypt(String str) {
+        if (StringUtils.isBlank(str)) {
+            return str;
+        }
         String[] array = str.split("\\|");
         if (array.length < 2) {
             return str;
         }
         //todo 解密实现
+        str = "";
 
         return str;
+    }
+
+    /**
+     * list 加密
+     *
+     * @param list
+     * @param bo
+     * @return
+     * @throws Exception
+     */
+    private List listEncrypt(List list, Boolean bo) throws Exception {
+        for (int i = 0; i < list.size(); i++) {
+            Object listValue = list.get(i);
+            // 判断不需要解析的类型
+            if (isNotCrypt(listValue) || listValue instanceof Map) {
+                break;
+            }
+            if (listValue instanceof String && bo) {
+                list.set(i, stringEncrypt((String) listValue));
+                continue;
+            }
+            beanEncrypt(listValue);
+        }
+
+        return list;
+    }
+
+    /**
+     * list 解密
+     *
+     * @param list
+     * @param bo
+     * @return
+     * @throws Exception
+     */
+    private List listDecrypt(List list, Boolean bo) throws Exception {
+        for (int i = 0; i < list.size(); i++) {
+            Object listValue = list.get(i);
+            // 判断不需要解析的类型 获得
+            if (isNotCrypt(listValue) || listValue instanceof Map) {
+                break;
+            }
+            if (listValue instanceof String && bo) {
+                list.set(i, stringDecrypt((String) listValue));
+                continue;
+            }
+            beanDecrypt(listValue);
+        }
+
+        return list;
     }
 
     /**
@@ -352,9 +376,16 @@ public class CryptIntercepter implements Interceptor {
             if (cryptField != null && cryptField.encrypt()) {
                 field.setAccessible(true);
                 Object fieldValue = field.get(val);
-                if (fieldValue != null && field.getType().equals(String.class)) {
-                    //todo 加密实现
-                    field.set(val, fieldValue);
+                if (fieldValue == null) {
+                    continue;
+                }
+                if (field.getType().equals(String.class)) {
+                    field.set(val, stringEncrypt((String) fieldValue));
+                    continue;
+                }
+                if (field.getType().equals(List.class)) {
+                    field.set(val, listEncrypt((List) fieldValue, Boolean.TRUE));
+                    continue;
                 }
             }
         }
@@ -374,9 +405,16 @@ public class CryptIntercepter implements Interceptor {
             if (cryptField != null && cryptField.decrypt()) {
                 field.setAccessible(true);
                 Object fieldValue = field.get(val);
-                if (fieldValue != null && field.getType().equals(String.class)) {
-                    //todo 解密实现
-                    field.set(val, fieldValue);
+                if (fieldValue == null) {
+                    continue;
+                }
+                if (field.getType().equals(String.class)) {
+                    field.set(val, stringDecrypt((String) fieldValue));
+                    continue;
+                }
+                if (field.getType().equals(List.class)) {
+                    field.set(val, listDecrypt((List) fieldValue, Boolean.TRUE));
+                    continue;
                 }
             }
         }
