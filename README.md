@@ -52,7 +52,7 @@ public @interface CryptField {
 3. 使用注解
 - 方法上
 
-  表示返回值需要解密(全局)，适用对象包括String、List&lt;String>、JavaBean、List&lt;JavaBean>
+  表示返回值需要解密，适用对象包括String、List&lt;String>、JavaBean、List&lt;JavaBean>
 
   ```java
   @CryptField
@@ -61,7 +61,7 @@ public @interface CryptField {
 
 - 类成员变量上
 
-  表示类成员需要加解密，具体看使用场景、适用对象包括String、List&lt;String>、JavaBean、List&lt;JavaBean>
+  表示类成员需要加解密，具体看使用场景、适用对象包括String、List&lt;String>
 
 - 方法参数上
 
