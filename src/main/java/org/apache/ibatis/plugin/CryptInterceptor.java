@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
         @Signature(type = Executor.class, method = "update", args = {MappedStatement.class, Object.class}),
         @Signature(type = Executor.class, method = "query", args = {MappedStatement.class, Object.class, RowBounds.class, ResultHandler.class})
 })
-public class CryptIntercepter implements Interceptor {
+public class CryptInterceptor implements Interceptor {
 
     /**
      * 适用于解密判断
@@ -39,7 +39,7 @@ public class CryptIntercepter implements Interceptor {
      */
     private static final ConcurrentHashMap<String, Set<String>> METHOD_PARAM_ANNOTATIONS_MAP = new ConcurrentHashMap<>();
 
-    public CryptIntercepter() {
+    public CryptInterceptor() {
 
     }
 
