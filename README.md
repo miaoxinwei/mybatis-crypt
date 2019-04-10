@@ -25,7 +25,7 @@ public @interface CryptField {
 
 
 
-### 食用方法
+### 使用方法
 
 1. 引入jar包
 2. 配置mybatis插件
