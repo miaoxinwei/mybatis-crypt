@@ -9,7 +9,6 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.session.defaults.DefaultSqlSession;
 
-import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -30,14 +29,22 @@ import java.util.concurrent.ConcurrentHashMap;
 })
 public class CryptInterceptor implements Interceptor {
 
-    /**
-     * 适用于解密判断
-     */
-    private static final ConcurrentHashMap<String, Boolean> METHOD_ANNOTATIONS_MAP = new ConcurrentHashMap<>();
+    private static final String PARAM = "param";
+
+    private static final String PARAM_TYPE_LIST = "list";
+
+    private static final String PARAM_TYPE_COLLECTION = "collection";
+
+    private static final String MAPPEDSTATEMENT_ID_SEPERATOR = ".";
+
     /**
      * 适用于加密判断
      */
     private static final ConcurrentHashMap<String, Set<String>> METHOD_PARAM_ANNOTATIONS_MAP = new ConcurrentHashMap<>();
+    /**
+     * 适用于解密判断
+     */
+    private static final ConcurrentHashMap<String, Boolean> METHOD_ANNOTATIONS_MAP = new ConcurrentHashMap<>();
 
     public CryptInterceptor() {
 
@@ -58,10 +65,10 @@ public class CryptInterceptor implements Interceptor {
             } else if (parameter instanceof DefaultSqlSession.StrictMap) {
                 DefaultSqlSession.StrictMap<Object> strictMap = (DefaultSqlSession.StrictMap<Object>) parameter;
                 for (Map.Entry<String, Object> entry : strictMap.entrySet()) {
-                    if (entry.getKey().contains("collection")) {
+                    if (entry.getKey().contains(PARAM_TYPE_COLLECTION)) {
                         continue;
                     }
-                    if (entry.getKey().contains("list")) {
+                    if (entry.getKey().contains(PARAM_TYPE_LIST)) {
                         Set<String> set = getParameterAnnotations(statement);
                         listEncrypt((List) entry.getValue(), !set.isEmpty());
                     }
@@ -74,7 +81,7 @@ public class CryptInterceptor implements Interceptor {
                 // 解析每一个参数
                 for (Map.Entry<String, Object> entry : paramMap.entrySet()) {
                     // 判断不需要解析的类型 不解析map
-                    if (isNotCrypt(entry.getValue()) || entry.getValue() instanceof Map || entry.getKey().contains("param")) {
+                    if (isNotCrypt(entry.getValue()) || entry.getValue() instanceof Map || entry.getKey().contains(PARAM)) {
                         continue;
                     }
                     // 如果string
@@ -138,14 +145,7 @@ public class CryptInterceptor implements Interceptor {
         if (bo != null) {
             return bo;
         }
-        Method m = null;
-        final Class clazz = Class.forName(id.substring(0, id.lastIndexOf(".")));
-        for (Method method : clazz.getMethods()) {
-            if (method.getName().equals(id.substring(id.lastIndexOf(".") + 1))) {
-                m = method;
-                break;
-            }
-        }
+        Method m = getMethodByMappedStatementId(id);
         if (m == null) {
             return Boolean.FALSE;
         }
@@ -178,14 +178,7 @@ public class CryptInterceptor implements Interceptor {
             return set;
         }
         set = new HashSet<>();
-        Method m = null;
-        final Class clazz = Class.forName(id.substring(0, id.lastIndexOf(".")));
-        for (Method method : clazz.getMethods()) {
-            if (method.getName().equals(id.substring(id.lastIndexOf(".") + 1))) {
-                m = method;
-                break;
-            }
-        }
+        Method m = getMethodByMappedStatementId(id);
         if (m == null) {
             return set;
         }
@@ -213,6 +206,26 @@ public class CryptInterceptor implements Interceptor {
     }
 
     /**
+     * 通过mappedStatementId get Method
+     *
+     * @param id
+     * @return
+     * @throws ClassNotFoundException
+     */
+    private Method getMethodByMappedStatementId(String id) throws ClassNotFoundException {
+        Method m = null;
+        final Class clazz = Class.forName(id.substring(0, id.lastIndexOf(MAPPEDSTATEMENT_ID_SEPERATOR)));
+        for (Method method : clazz.getMethods()) {
+            if (method.getName().equals(id.substring(id.lastIndexOf(MAPPEDSTATEMENT_ID_SEPERATOR) + 1))) {
+                m = method;
+                break;
+            }
+        }
+
+        return m;
+    }
+
+    /**
      * 判断是否需要加解密
      *
      * @param o
@@ -227,9 +240,9 @@ public class CryptInterceptor implements Interceptor {
      *
      * @param str
      * @return
-     * @throws UnsupportedEncodingException
+     * @throws Exception
      */
-    private String stringEncrypt(String str) throws UnsupportedEncodingException {
+    private String stringEncrypt(String str) throws Exception {
         return stringEncrypt(null, str, null, null);
     }
 
@@ -239,9 +252,9 @@ public class CryptInterceptor implements Interceptor {
      * @param str
      * @param set
      * @return
-     * @throws UnsupportedEncodingException
+     * @throws Exception
      */
-    private String stringEncrypt(String str, Set<String> set) throws UnsupportedEncodingException {
+    private String stringEncrypt(String str, Set<String> set) throws Exception {
         return stringEncrypt(null, str, set, true);
     }
 
@@ -252,9 +265,9 @@ public class CryptInterceptor implements Interceptor {
      * @param str
      * @param set
      * @return
-     * @throws UnsupportedEncodingException
+     * @throws Exception
      */
-    private String stringEncrypt(String name, String str, Set<String> set) throws UnsupportedEncodingException {
+    private String stringEncrypt(String name, String str, Set<String> set) throws Exception {
         return stringEncrypt(name, str, set, false);
     }
 
@@ -266,9 +279,9 @@ public class CryptInterceptor implements Interceptor {
      * @param set
      * @param isSingle
      * @return
-     * @throws UnsupportedEncodingException
+     * @throws Exception
      */
-    private String stringEncrypt(String name, String str, Set<String> set, Boolean isSingle) {
+    private String stringEncrypt(String name, String str, Set<String> set, Boolean isSingle) throws Exception {
         if (StringUtils.isBlank(str)) {
             return str;
         }
@@ -296,7 +309,6 @@ public class CryptInterceptor implements Interceptor {
      *
      * @param str
      * @return
-     * @throws UnsupportedEncodingException
      */
     private String stringDecrypt(String str) {
         if (StringUtils.isBlank(str)) {
@@ -366,7 +378,7 @@ public class CryptInterceptor implements Interceptor {
      * bean 加密
      *
      * @param val
-     * @throws IllegalAccessException
+     * @throws Exception
      */
     private void beanEncrypt(Object val) throws Exception {
         Class objClazz = val.getClass();
@@ -395,7 +407,7 @@ public class CryptInterceptor implements Interceptor {
      * bean 解密
      *
      * @param val
-     * @throws IllegalAccessException
+     * @throws Exception
      */
     private void beanDecrypt(Object val) throws Exception {
         Class objClazz = val.getClass();

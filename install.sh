@@ -1,1 +1,1 @@
-mvn clean package source:jar -Dmaven.test.skip=true -Dpackagedir=
+mvn clean install source:jar -Dmaven.test.skip=true -Dpackagedir=
