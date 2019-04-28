@@ -59,10 +59,10 @@ public @interface CryptField {
      public SqlSessionFactory sqlSessionFactory() throws Exception {
      	SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
      	PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-       factoryBean.setMapperLocations(resolver.getResources("classpath:/mapper/*.xml"));
+             factoryBean.setMapperLocations(resolver.getResources("classpath:/mapper/*.xml"));
      	factoryBean.setDataSource(dataSource);
        
-       List<Interceptor> interceptors = Lists.newArrayList();
+             List<Interceptor> interceptors = Lists.newArrayList();
      
      	CryptInterceptor cryptInterceptor = new CryptInterceptor();
      	interceptors.add(cryptInterceptor);
